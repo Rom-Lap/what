@@ -1,0 +1,111 @@
+# find coincidence
+% Initialize folder and file information
+folderPath = 'C:\Users\PC-01\Documents\MATLAB\bell'; % Update with the actual path
+videoFiles = dir(fullfile(folderPath, '*.mp4'));
+
+% Initialize a table with the correct size based on number of video files
+numFiles = length(videoFiles);
+results = table('Size', [numFiles, 3], ...
+    'VariableTypes', {'double', 'double', 'double'}, ...
+    'VariableNames', {'Alpha', 'Beta', 'N'}, ...
+    'RowNames', {});
+
+% Define threshold and cooldown
+threshold = 2e5;
+cooldown = 10;  % Minimum frame separation for counting peaks
+
+% Create figures directory if it doesn't exist
+figuresPath = fullfile(folderPath, 'figures');
+if ~exist(figuresPath, 'dir')
+    mkdir(figuresPath);
+end
+
+% Loop through each video
+for videoIdx = 1:numFiles
+    % Read video
+    videoName = videoFiles(videoIdx).name;
+    filepath = fullfile(folderPath, videoName);
+    v = VideoReader(filepath);
+    
+    % Extract alpha and beta from the file name
+    alphaBetaPattern = 'alpha=(-?\d+\.?\d*)_beta=(-?\d+\.?\d*)';
+    tokens = regexp(videoName, alphaBetaPattern, 'tokens');
+    
+    if ~isempty(tokens)
+        currentAlpha = str2double(tokens{1}{1});
+        currentBeta = str2double(tokens{1}{2});
+    else
+        warning('File name does not match expected pattern: %s', videoName);
+        continue;
+    end
+end
+    
+    % Process video frames
+    D2_a = zeros(1, v.NumFrames);
+    D2_b = zeros(1, v.NumFrames);
+    
+    % Read and process frames
+    for frameIdx = 1:v.NumFrames
+        if frameIdx > 1200
+            break;
+        end
+        frame = read(v, frameIdx);
+        D2_a(frameIdx) = sum(sum(frame(138:203, 1029:1095, 1)));
+        D2_b(frameIdx) = sum(sum(frame(514:598, 1029:1110, 1)));
+    end
+    
+     % Initialize counters and last peak indices
+    N_Alice = 0;
+    N_Bob = 0;
+    last_Alice_peak = -cooldown;
+    last_Bob_peak = -cooldown;
+
+    % Count the number of frames that exceed the threshold with cooldown
+    for frameIdx = 1:length(D2_a)
+        if D2_a(frameIdx) > threshold && (frameIdx - last_Alice_peak) > cooldown
+            N_Alice = N_Alice + 1;
+            last_Alice_peak = frameIdx;
+        end
+        if D2_b(frameIdx) > threshold && (frameIdx - last_Bob_peak) > cooldown
+            N_Bob = N_Bob + 1;
+            last_Bob_peak = frameIdx;
+        end
+   
+
+    % Calculate total counts
+    N = N_Alice + N_Bob;
+    
+    % Create a combined plot
+    figure('Visible', 'off');
+    hold on;
+    plot(D2_a, 'b-', 'DisplayName', 'Bob');
+    plot(D2_b, 'r-', 'DisplayName', 'Alice');
+    yline(threshold, 'k--', 'Threshold', 'LineWidth', 1.5);
+    title(sprintf('Intensity Plot: α = %.1f°, β = %.1f°, N = %d', currentAlpha, currentBeta, N));
+    xlabel('Frame Number');
+    ylabel('Intensity');
+    legend('Location', 'best');
+    grid on;
+
+    % Save the combined plot
+    combinedFigName = sprintf('combined_plot_alpha%.1f_beta%.1f.png', currentAlpha, currentBeta);
+    saveas(gcf, fullfile(figuresPath, combinedFigName));
+    close(gcf);
+    
+    % Assign to preallocated row
+    results.Alpha(videoIdx) = currentAlpha;
+    results.Beta(videoIdx) = currentBeta;
+    results.N(videoIdx) = N;
+
+     % Display progress
+    fprintf('Processed video %d/%d: alpha=%.1f, beta=%.1f, N=%d\n', ...
+        videoIdx, length(videoFiles), currentAlpha, currentBeta, N);
+end
+
+% Sort the results by alpha and beta
+results = sortrows(results, {'Alpha', 'Beta'});
+
+% Save the results to a CSV file
+outputFilePath = fullfile(folderPath, 'results.csv');
+writetable(results, outputFilePath);
+fprintf('Results saved to: %s\n', outputFilePath);
