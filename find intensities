@@ -1,0 +1,98 @@
+% Initialize video reader
+filename = '1100111010-10bit';
+v = VideoReader([filename, '.mp4']);
+
+% Extract the total bits sequence from the filename
+bit_num = filename(end-4:end-3); % Extract the number of bits
+bitsq = filename(1:str2double(bit_num)); % Extract the actual bit sequence
+
+% Convert the string bits to a numeric list
+bitList = arrayfun(@(x) str2double(x), bitsq);  % Convert each character to a number
+
+% Pre-allocate arrays for data storage
+numFrames = v.NumFrames; % Total number of frames
+D2_aH = zeros(1, numFrames);
+D2_bH = zeros(1, numFrames);
+D2_aV = zeros(1, numFrames);
+D2_bV = zeros(1, numFrames);
+
+% Loop through all frames in the video
+for i = 1:numFrames
+    frame = read(v, i); % Read the ith frame
+
+    % Sum intensity in each region of interest
+    D2_aH(i) = sum(sum(frame(152:206, 615:666, 1))); % Region 1
+    D2_bH(i) = sum(sum(frame(522:579, 590:649, 1))); % Region 2
+    D2_aV(i) = sum(sum(frame(135:195, 1026:1089, 1))); % Region 3
+    D2_bV(i) = sum(sum(frame(533:603, 1036:1103, 1))); % Region 4
+end
+
+% Filtering only needed values 
+threshold = 5.5e5; % Adjustable threshold value
+D2_aH(D2_aH < threshold) = 0;
+D2_bH(D2_aH < threshold) = 0;
+D2_aV(D2_aH < threshold) = 0;
+D2_bV(D2_aH < threshold) = 0;
+
+% Calculate the average of each segment (non-zero parts)
+% Define a function to calculate segment averages
+function averages = segment_averages(data)
+    nonZeroIndices = find(data > 0);
+    averages = [];
+    currentSegment = [];
+    for i = 1:length(nonZeroIndices)
+        idx = nonZeroIndices(i);
+        currentSegment(end + 1) = data(idx);
+        if i == length(nonZeroIndices) || nonZeroIndices(i + 1) > idx + 1
+            averages(end + 1) = mean(currentSegment);
+            currentSegment = [];
+        end
+    end
+end
+
+% Calculate segment averages for each region
+avg_D2_aH = segment_averages(D2_aH);
+avg_D2_bH = segment_averages(D2_bH);
+avg_D2_aV = segment_averages(D2_aV);
+avg_D2_bV = segment_averages(D2_bV);
+
+
+% Save the data to an Excel file (including the bit sequence and segment averages)
+filename = 'D2_Intensity_Data_with_Bits.xlsx';
+T = table(bitList', avg_D2_aH', avg_D2_bH', avg_D2_aV', avg_D2_bV', ...
+    'VariableNames', {'Bit', 'Avg_D2_aH', 'Avg_D2_bH', 'Avg_D2_aV', 'Avg_D2_bV'});
+writetable(T, filename);
+disp(['Data with bit sequence saved to ', filename]);
+
+% Plot results
+figure;
+subplot(2, 2, 1);
+plot(D2_aH);
+title('D2_aH (Region 1)');
+xlabel('Frame');
+ylabel('Intensity');
+
+subplot(2, 2, 2);
+plot(D2_bH);
+title('D2_bH (Region 2)');
+xlabel('Frame');
+ylabel('Intensity');
+
+subplot(2, 2, 3);
+plot(D2_aV);
+title('D2_aV (Region 3)');
+xlabel('Frame');
+ylabel('Intensity');
+
+subplot(2, 2, 4);
+plot(D2_bV);
+title('D2_bV (Region 4)');
+xlabel('Frame');
+ylabel('Intensity');
+
+% Optional: Add a colormap visualization for the final frame
+figure;
+pcolor(frame(:, :, 1)); % Show the red channel of the last frame
+shading flat;
+colorbar;
+title('Final Frame (Red Channel)');
