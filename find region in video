@@ -1,0 +1,29 @@
+clear;
+v= VideoReader('alpha=0_beta=22.5.mp4');
+numFrame=v.NumFrames;
+for i=1:1:numFrame
+frame = read(v,i);
+%threshold = 1.3e4
+%pcolor(frame(400:633,910:1220,1))
+D2_a(i)=sum(sum(frame(167:181,1052:1066,1)));
+%D2_b(i)=sum(sum(frame(545:558,1059:1069,1)));
+%D=D2_b>threshold;
+%D2(i)=sum(sum(frame(406:647,461:785,1)));
+shading flat
+%plot(frame(200,:,1))
+%[M,I] = max(frame(200,:,1));
+%x(i)=I;
+%shading flat
+%pause(0.05)
+%colorbar
+i
+end
+1
+
+plot(D2_a)
+%plot(D2_b)
+%disp(numFrame)
+
+
+%pcolor(frame(:,:,1))
+%shading flat
