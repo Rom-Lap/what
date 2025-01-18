@@ -1,0 +1,98 @@
+function create_full_density_matrix(inputFile, outputFile)
+    % Create a 4x4 density matrix and save it to a CSV file.
+    % Inputs:
+    %   inputFile: Name of the Excel file containing average intensities.
+    %   outputFile: Name of the CSV file to save the density matrix.
+    
+    % Read the data from the input file
+    data = readtable(inputFile);
+    
+    % Extract relevant columns
+    bit = data.Bit;  % Change here from 'bit' to 'Bit' (case-sensitive)
+    
+    % Simulation columns
+    avg_D2_aH = data.Avg_D2_aH;
+    avg_D2_bH = data.Avg_D2_bH;
+    avg_D2_aV = data.Avg_D2_aV;
+    avg_D2_bV = data.Avg_D2_bV;
+
+    % Initialize probabilities
+    P_HH_HH = 0;
+    P_HH_VV = 0;
+    P_VV_HH = 0;
+    P_VV_VV = 0;
+    P_HV_HV = 0;
+    P_HV_VH = 0;
+    P_VH_HV = 0;
+    P_VH_VH = 0;
+
+    % Process rows where bit == 1 and bit == 0 separately
+    for bit_val = [0, 1]
+        % Filter rows where bit matches the current value
+        mask = (bit == bit_val);
+
+        % Skip if no rows match
+        if sum(mask) == 0
+            continue;
+        end
+
+        % Calculate total intensities for the filtered rows
+        total_int = avg_D2_aH(mask) + avg_D2_bH(mask) + avg_D2_aV(mask) + avg_D2_bV(mask);
+
+        % Compute conditional probabilities for the filtered rows
+        P_HH = (avg_D2_aH(mask) + avg_D2_bH(mask)) ./ total_int;
+        P_HV = (avg_D2_aH(mask) + avg_D2_bV(mask)) ./ total_int;
+        P_VH = (avg_D2_aV(mask) + avg_D2_bH(mask)) ./ total_int;
+        P_VV = (avg_D2_aV(mask) + avg_D2_bV(mask)) ./ total_int;
+
+        % Assign probabilities based on the bit value
+        if bit_val == 1
+            P_HH_HH = mean(P_HH);
+            P_HH_VV = mean(P_VV);
+        else
+            P_VV_HH = mean(P_HH);
+            P_VV_VV = mean(P_VV);
+        end
+
+        % Calculate HV and VH probabilities
+        if bit_val == 1
+            P_HV_HV = mean(P_HV);
+            P_HV_VH = mean(P_VH);
+        else
+            P_VH_HV = mean(P_HV);
+            P_VH_VH = mean(P_VH);
+        end
+    end
+
+    % Assemble the full 4x4 density matrix HHVV
+    densityMatrix_HHVV = [
+        P_HH_HH, 0, 0, P_VV_HH;
+        0, 0, 0, 0;
+        0, 0, 0, 0;
+        P_HH_VV, 0, 0, P_VV_VV;
+    ];
+
+    % Assemble the full 4x4 density matrix HVVH
+    densityMatrix_HVVH = [
+        0, 0, 0, 0;
+        0, P_HV_HV, P_VH_HV, 0;
+        0, P_HV_VH, P_VH_VH, 0;
+        0, 0, 0, 0;
+    ];
+
+    % Normalize the density atrices
+    %densityMatrix_HHVV = densityMatrix_HHVV / sum(densityMatrix_HHVV(:));
+    %densityMatrix_HVVH = densityMatrix_HVVH / sum(densityMatrix_HVVH(:));
+
+    % Save the density matrices to separate CSV files
+    outputFile_HHVV = 'Simulation_angle_bar_data_base_HHVV_bit_num_50.csv';
+    writematrix(densityMatrix_HHVV, outputFile_HHVV);
+    disp(['Full density matrix_HHVV saved to ', outputFile_HHVV]);
+
+    outputFile_HVVH = 'Simulation_angle_bar_data_base_HVVH_bit_num_50.csv';
+    writematrix(densityMatrix_HVVH, outputFile_HVVH);
+    disp(['Full density matrix_HVVH saved to ', outputFile_HVVH]);
+end
+
+% Call the function with correct file names
+create_full_density_matrix('D2_Intensity_Data_with_Bits.xlsx', 'Full_Density_Matrix.csv');
