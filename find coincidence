@@ -78,10 +78,10 @@ end
     % Create a combined plot
     figure('Visible', 'off');
     hold on;
-    plot(D2_a, 'b-', 'DisplayName', 'Bob');
-    plot(D2_b, 'r-', 'DisplayName', 'Alice');
+    plot(D2_a, 'r-', 'DisplayName', 'Bob');
+    plot(D2_b, 'b-', 'DisplayName', 'Alice');
     yline(threshold, 'k--', 'Threshold', 'LineWidth', 1.5);
-    title(sprintf('Intensity Plot: α = %.1f°, β = %.1f°, N = %d', currentAlpha, currentBeta, N));
+    title(sprintf('Intensity Plot: α = %.1f°, β = %.1f°', currentAlpha, currentBeta));
     xlabel('Frame Number');
     ylabel('Intensity');
     legend('Location', 'best');
